@@ -1,8 +1,4 @@
 export function Tabs({ activeTab, onChangeCb }) {
-  // const [tab, setTab] = useState(0);
-
-  console.log({ activeTab });
-
   const tabs = [
     {
       label: "Select Question",

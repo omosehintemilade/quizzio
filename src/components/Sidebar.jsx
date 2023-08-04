@@ -25,7 +25,6 @@ export default function Sidebar({
 
   // USE EFFECTS
   useEffect(() => {
-    console.log({ time }, "changing");
     // if time is up
     if (time <= 0) {
       setIsPlayingTimer(false);
