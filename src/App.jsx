@@ -3,12 +3,30 @@ import { toast } from "react-toastify";
 import Navbar from "./components/Navbar";
 import { Tabs } from "./components/Tabs";
 
+function persistState(state) {
+  console.log("syncing current state for backup...");
+  localStorage.setItem("quizzio", JSON.stringify(state));
+  console.log("Done! 🎉🎉");
+}
+
+function fetchState() {
+  return localStorage.getItem("quizzio");
+}
+
+function resetState() {
+  localStorage.removeItem("quizzio");
+}
+
 function App() {
-  const [currentTab, setCurrentTab] = useState(1);
+  const [defaultState, _] = useState(JSON.parse(fetchState()));
+
+  // console.log({ defaultState });
+
+  const [currentTab, setCurrentTab] = useState(0);
 
   const [questionsRange, setQuestionsRange] = useState({
-    start: 1,
-    end: 10
+    start: defaultState?.questionsRange.start ?? 1,
+    end: defaultState?.questionsRange.end ?? 10
   });
   const [numberOfQuestions, setNumberOfQuestions] = useState([]);
 
@@ -21,14 +39,28 @@ function App() {
     );
   }, [questionsRange]);
 
-  const [defaultTime, setDefaultTime] = useState(10);
+  const [defaultTime, setDefaultTime] = useState(
+    defaultState?.defaultTime ?? 10
+  );
 
   const [seconds, setSeconds] = useState(defaultTime);
 
   // This stores the index of questions answered
-  const [answeredQuestions, setAnsweredQuestions] = useState([]);
+  const [answeredQuestions, setAnsweredQuestions] = useState(
+    defaultState?.answeredQuestions || []
+  );
+  const [questionIndex, setQuestionIndex] = useState(null);
 
   console.log({ seconds });
+
+  // sync state every 10 seconds
+  useEffect(() => {
+    persistState({
+      questionsRange,
+      defaultTime,
+      answeredQuestions
+    });
+  }, [questionsRange, defaultTime, answeredQuestions]);
 
   return (
     <>
@@ -39,6 +71,7 @@ function App() {
           {currentTab === 0 ? (
             <SelectQuestionTabPane
               questions={numberOfQuestions}
+              questionsRange={questionsRange}
               setQuestionsRange={setQuestionsRange}
               time={seconds}
               defaultTime={defaultTime}
@@ -46,9 +79,11 @@ function App() {
               setDefaultTime={setDefaultTime}
               answeredQuestions={answeredQuestions}
               setAnsweredQuestions={setAnsweredQuestions}
+              setQuestionIndex={setQuestionIndex}
+              setCurrentTab={setCurrentTab}
             />
           ) : (
-            <QuestionTabPane />
+            <QuestionTabPane questionIndex={questionIndex} />
           )}
         </div>
         <Tabs activeTab={currentTab} onChangeCb={setCurrentTab} />
@@ -57,7 +92,7 @@ function App() {
   );
 }
 
-const Button = ({ value, answered, setSelected }) => {
+const Button = ({ value, answered, setSelected, onSelectCb }) => {
   return (
     <div
       className={`basis-24 text-center py-2 rounded-md text-white w-24 cursor-pointer ${
@@ -68,6 +103,9 @@ const Button = ({ value, answered, setSelected }) => {
         if (answered)
           setSelected((prev) => prev.filter((item) => item !== value));
         else setSelected((prev) => [...prev, value]);
+
+        // call onSelect callback
+        onSelectCb();
       }}
     >
       {value}
@@ -83,12 +121,12 @@ const SelectQuestionTabPane = ({
   defaultTime,
   setDefaultTime,
   answeredQuestions,
-  setAnsweredQuestions
+  setAnsweredQuestions,
+  setQuestionIndex,
+  questionsRange,
+  setCurrentTab
 }) => {
-  const [range, setRange] = useState({
-    start: 0,
-    end: 0
-  });
+  const [range, setRange] = useState(questionsRange);
 
   const [isPlayingTimer, setIsPlayingTimer] = useState(false);
   const [timerIntervalId, setTimerIntervalId] = useState(null);
@@ -142,6 +180,11 @@ const SelectQuestionTabPane = ({
               value={val}
               answered={answeredQuestions.includes(val)}
               setSelected={setAnsweredQuestions}
+              onSelectCb={() => {
+                console.log("onSelectCb:", val);
+                setQuestionIndex(val);
+                setCurrentTab(1);
+              }}
             />
           ))}
         </div>
@@ -154,6 +197,7 @@ const SelectQuestionTabPane = ({
               <input
                 type="number"
                 className="border-2 border-blue-400 outline-none rounded-md p-0.5 focus:border-blue-500 w-20"
+                value={range.start}
                 onChange={({ target }) =>
                   setRange((prev) => ({
                     ...prev,
@@ -164,6 +208,7 @@ const SelectQuestionTabPane = ({
               <p>=&gt;</p>
               <input
                 type="number"
+                value={range.end}
                 className="border-2 border-blue-400 outline-none rounded-md p-0.5 focus:border-blue-500 w-20"
                 onChange={({ target }) =>
                   setRange((prev) => ({
@@ -178,7 +223,7 @@ const SelectQuestionTabPane = ({
                   console.log(range.start, range.end);
                   // If there are no figures
                   if (!range.start || !range.end) {
-                    toast.error("Range cannot be blank!");
+                    toast.error("Range is not nullable!");
                     return;
                   }
 
@@ -200,6 +245,7 @@ const SelectQuestionTabPane = ({
             <div className="flex items-center">
               <input
                 type="number"
+                value={defaultTimerValue}
                 className="border-2 border-blue-400 outline-none rounded-md p-0.5 focus:border-blue-500 w-full"
                 onChange={({ target }) =>
                   setDefaultTimerValue(target.valueAsNumber)
@@ -253,7 +299,13 @@ const SelectQuestionTabPane = ({
           </div>
         </div>
 
-        <button className="w-full text-center bg-red-600 text-white rounded-md py-2 hover:bg-red-700">
+        <button
+          className="w-full text-center bg-red-600 text-white rounded-md py-2 hover:bg-red-700"
+          onClick={() => {
+            resetState();
+            window.location.reload();
+          }}
+        >
           Reset State
         </button>
       </div>
@@ -264,34 +316,45 @@ const SelectQuestionTabPane = ({
 const QuestionTabPane = ({ questionIndex }) => {
   const [showAnswer, setShowAnswer] = useState(false);
 
-  console.log({ showAnswer });
+  console.log({ showAnswer, questionIndex });
 
   return (
     <>
       <div className="w-3/4 px-8 py-10 overflow-y-auto">
         <div className="text-justify">
-          <div className="mb-8">
-            <h3 className="font-bold text-2xl mb-4">Question:</h3>
-            <p className="text-gray-800">
-              Lorem ipsum dolor sit amet consectetur adipisicing elit. Iusto,
-              odit sed? Dolorem, non fuga! Deleniti accusamus maiores dolores
-              provident pariatur sed nesciunt atque quos praesentium et
-              excepturi illum mollitia vitae delectus, animi quod, quam non
-              aspernatur necessitatibus veritatis error natus!
+          {questionIndex === null ? (
+            <p className="text-2xl">
+              No Active Question! Plelase select a question
             </p>
-          </div>
+          ) : (
+            <>
+              <div className="mb-8">
+                <h3 className="font-bold text-2xl mb-4">
+                  Question {questionIndex}:
+                </h3>
+                <p className="text-gray-800">
+                  Lorem ipsum dolor sit amet consectetur adipisicing elit.
+                  Iusto, odit sed? Dolorem, non fuga! Deleniti accusamus maiores
+                  dolores provident pariatur sed nesciunt atque quos praesentium
+                  et excepturi illum mollitia vitae delectus, animi quod, quam
+                  non aspernatur necessitatibus veritatis error natus!
+                </p>
+              </div>
 
-          {showAnswer && (
-            <div className="pl-6 text-green-600">
-              <h3 className="font-semibold text-xl mb-2.5">Answer:</h3>
-              <p className="text-gray-700s">
-                Lorem ipsum dolor sit amet consectetur adipisicing elit. Iusto,
-                odit sed? Dolorem, non fuga! Deleniti accusamus maiores dolores
-                provident pariatur sed nesciunt atque quos praesentium et
-                excepturi illum mollitia vitae delectus, animi quod, quam non
-                aspernatur necessitatibus veritatis error natus!
-              </p>
-            </div>
+              {showAnswer && (
+                <div className="pl-6 text-green-600">
+                  <h3 className="font-semibold text-xl mb-2.5">Answer:</h3>
+                  <p className="text-gray-700s">
+                    Lorem ipsum dolor sit amet consectetur adipisicing elit.
+                    Iusto, odit sed? Dolorem, non fuga! Deleniti accusamus
+                    maiores dolores provident pariatur sed nesciunt atque quos
+                    praesentium et excepturi illum mollitia vitae delectus,
+                    animi quod, quam non aspernatur necessitatibus veritatis
+                    error natus!
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

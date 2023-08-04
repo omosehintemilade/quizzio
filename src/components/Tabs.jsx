@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 export function Tabs({ activeTab, onChangeCb }) {
   // const [tab, setTab] = useState(0);
 
