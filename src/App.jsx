@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import Navbar from "./components/Navbar";
 import { Tabs } from "./components/Tabs";
+import questionsJson from "../questions.json";
 
 function persistState(state) {
   console.log("syncing current state for backup...");
@@ -19,7 +20,7 @@ function resetState() {
 
 function App() {
   const [defaultState, _] = useState(JSON.parse(fetchState()));
-
+  // console.log({ questions });
   // console.log({ defaultState });
 
   const [currentTab, setCurrentTab] = useState(0);
@@ -233,6 +234,14 @@ const SelectQuestionTabPane = ({
                     return;
                   }
 
+                  // If end value is greater than questions length
+                  if (range.end > questionsJson.length) {
+                    toast.error(
+                      `End range exceeds total number of questions (${questionsJson.length})`
+                    );
+                    return;
+                  }
+
                   setQuestionsRange(range);
                 }}
               >
@@ -333,11 +342,7 @@ const QuestionTabPane = ({ questionIndex }) => {
                   Question {questionIndex}:
                 </h3>
                 <p className="text-gray-800">
-                  Lorem ipsum dolor sit amet consectetur adipisicing elit.
-                  Iusto, odit sed? Dolorem, non fuga! Deleniti accusamus maiores
-                  dolores provident pariatur sed nesciunt atque quos praesentium
-                  et excepturi illum mollitia vitae delectus, animi quod, quam
-                  non aspernatur necessitatibus veritatis error natus!
+                  {questionsJson[questionIndex - 1].question}
                 </p>
               </div>
 
@@ -345,12 +350,7 @@ const QuestionTabPane = ({ questionIndex }) => {
                 <div className="pl-6 text-green-600">
                   <h3 className="font-semibold text-xl mb-2.5">Answer:</h3>
                   <p className="text-gray-700s">
-                    Lorem ipsum dolor sit amet consectetur adipisicing elit.
-                    Iusto, odit sed? Dolorem, non fuga! Deleniti accusamus
-                    maiores dolores provident pariatur sed nesciunt atque quos
-                    praesentium et excepturi illum mollitia vitae delectus,
-                    animi quod, quam non aspernatur necessitatibus veritatis
-                    error natus!
+                    {questionsJson[questionIndex - 1].answer}
                   </p>
                 </div>
               )}
